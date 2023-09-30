@@ -12,7 +12,11 @@ from rest_framework import status
 from rest_framework import generics
 from .serializers import BookSerializer, CategorySerializer, MenuItemSerializer
 from rest_framework.decorators import api_view
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import permission_classes, throttle_classes
+from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 
+from .throttles import TenCallsPerMinute
 from .models import Book, MenuItem, Category
 
 # Create your views here.
@@ -68,14 +72,27 @@ class CategoryListCreate(generics.ListCreateAPIView):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
 
+###########################Throttling for anon and user tests #########################
 
-########### apply filtering and ordering for class based views
 class MenuItemsViewSet(viewsets.ModelViewSet):
+    # throttle_classes = [AnonRateThrottle, UserRateThrottle]
     queryset = MenuItem.objects.all()
     serializer_class = MenuItemSerializer
-    ordering_fields=['price', 'inventory']
-    search_fields=['title']
-    # search_fields=['title', 'category_title']
+    
+    def get_throttles(self):
+        if self.action == 'update':
+            throttle_classes = [UserRateThrottle]
+        else:
+            throttle_classes = []
+        return [throttle() for throttle in throttle_classes]
+
+########### apply filtering and ordering for class based views
+# class MenuItemsViewSet(viewsets.ModelViewSet):
+#     queryset = MenuItem.objects.all()
+#     serializer_class = MenuItemSerializer
+#     ordering_fields=['price', 'inventory']
+#     search_fields=['title']
+#     # search_fields=['title', 'category_title']
 
 ####### function based views#####################
 @api_view()
@@ -122,3 +139,29 @@ def single_item(request, id):
     item = MenuItem.objects.get(pk=id)
     serialized_item = MenuItemSerializer(item, context = {'request': request})
     return Response(serialized_item.data, status.HTTP_200_OK)
+
+
+@api_view(['POST', 'GET'])
+@permission_classes([IsAuthenticated])
+def secret(request):
+    return Response({"message": "Some secret message"})
+
+@api_view(['POST', 'GET'])
+@permission_classes([IsAuthenticated])
+def manager_view(request):
+    if request.user.groups.filter(name='manager').exists():
+        return Response({"message": "Welcome Manager!"})
+    return Response({"message": 'you are not allowed'}, status.HTTP_403_FORBIDDEN)
+
+@api_view()
+@throttle_classes([AnonRateThrottle])
+def throttle_check_anon(request):
+    return Response({'message': 'Successful'})
+
+@api_view()
+@permission_classes([IsAuthenticated])
+@throttle_classes([TenCallsPerMinute])
+def throttle_check_auth(request):
+    return Response({'message': 'Successful'})
+
+
