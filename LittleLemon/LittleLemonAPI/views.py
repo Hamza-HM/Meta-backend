@@ -336,6 +336,31 @@ class orderDetail(generics.RetrieveUpdateDestroyAPIView):
     def get_queryset(self):
         pk = self.kwargs.get('pk')
         return Order.objects.filter(id=pk, user=self.request.user)
+    
+    def udate(self, request, *args, **kwargs):
+        order = self.get_object()
+        is_manager =  check_user_role(request.user, ROLES) == ROLES[0]
+        is_delivery_crew =  check_user_role(request.user, ROLES) == ROLES[1]
+        if 'delivery_crew' in request.data and is_manager:
+            dc_id = request.data('delivery_crew')
+            data= {'delivery_crew': User.objects.filter(id=dc_id)}
+        if 'status' in request.data and is_manager or is_delivery_crew:
+            status = request.data('status')
+            data= {'status': status}
+        if 'order_item' in request.data:
+            order_item_id = request.data('menu_item')
+            order = OrderItem.objects.filter(id=order_item_id).first()
+            order.quantity += 1 #to fix later
+        serialized_data= self.get_serializer(order, data=data, partial=True)
+        if serialized_data.is_valid(raise_exception=True):
+            serialized_data.save()
+            return Response({'message': 'Order deleted successfully'}, status.HTTP_200_OK)
+    def delete(self, request, *args, **kwargs):
+        order = self.get_object()
+        order.delete()
+        return Response({'message': 'Order deleted successfully'}, status.HTTP_200_OK)
+
+
 
 # helper function
 def check_user_role(user, roles):
