@@ -9,9 +9,20 @@ from rest_framework.permissions import IsAuthenticated
 
 from django.contrib.auth.models import User, Group
 from django.core.exceptions import ObjectDoesNotExist
-from .serializers import MenuItemSerializer, UserSerializer
-from .models import MenuItem
+from django.shortcuts import get_object_or_404
+
+from .serializers import (
+    MenuItemSerializer,
+    UserSerializer,
+    CartItemSerializer,
+    OrderSerializer,
+    OrderItemSerializer
+)
+from .models import MenuItem, Cart, Order, OrderItem
+from datetime import datetime
+
 # Create your views here.
+
 ROLES = ['Manager', 'Delivery Crew']
 
 
@@ -245,6 +256,81 @@ class DestroyFromDelivery(generics.DestroyAPIView):
             user.groups.remove(delivery_group)
             return Response({'message': 'Success'}, status.HTTP_201_CREATED)
         return Response({'message': 'User Not a Delivery'}, status.HTTP_404_NOT_FOUND)
+
+class ListCartItems(generics.ListCreateAPIView, generics.DestroyAPIView):
+    permission_classes = (IsAuthenticated, )
+    serializer_class = CartItemSerializer
+
+    def get_queryset(self): 
+        return Cart.objects.filter(user=self.request.user)
+
+    def post(self, request, *args, **kwargs):
+        user = request.user
+        menu_item_id = request.data.get('id')
+        menu_item = get_object_or_404(MenuItem, id=menu_item_id)
+        cart_obj_menu_item = Cart.objects.filter(user=user, menuitem=menu_item).first()
+        if not cart_obj_menu_item:
+            cart_obj_menu_item = Cart.objects.create(
+                user = user,
+                menuitem = menu_item,
+                unit_price = menu_item.price,
+                price = menu_item.price,
+                quantity = 1)
+            cart_obj_menu_item.save()
+            return Response({'message': 'Item Created'}, status.HTTP_201_CREATED)
+        cart_obj_menu_item.quantity += 1
+        cart_obj_menu_item.save()
+        return Response({'message': 'quantity updated'}, status.HTTP_200_OK)
+
+    def delete(self, request, *args, **kwargs):
+        user = request.user
+        menu_item_id = request.data.get('id')
+        menu_item = get_object_or_404(MenuItem, id=menu_item_id)
+        cart_obj_menu_item = Cart.objects.filter(user=user, menuitem=menu_item).first()
+        if not cart_obj_menu_item:
+            return Response({'message': 'Invalid item'}, status.HTTP_404_NOT_FOUND)
+        cart_obj_menu_item.delete()
+        return Response({'message': 'Item Deleted'}, status.HTTP_200_OK)
+                   
+        
+class OrderListCreate(generics.ListCreateAPIView):
+    permission_classes = (IsAuthenticated, )
+    serializer_class = OrderSerializer
+
+    def get_queryset(self):
+        is_admin = self.request.user.is_superuser
+        is_manager = check_user_role(self.request.user, ROLES) == ROLES[0]
+        is_delivery_crew = check_user_role(self.request.user, ROLES) == ROLES[1]
+        if not is_admin and not is_manager and not is_delivery_crew:
+            return Order.objects.filter(user=self.request.user)
+        if is_delivery_crew:
+            return Order.objects.filter(delivery_crew=self.request.user)
+        return Order.objects.all()
+    
+    def post(self, request, *args, **kwargs):
+        user = request.user
+        cart_items = Cart.objects.filter(user=user)
+        if cart_items:
+            order_qs = Order.objects.create(
+                user=user,
+                date=datetime.now(),
+                total = 0
+                    )
+            for cart_item in cart_items:
+                OrderItem.objects.create(
+                    order= order_qs,
+                    menuitem=cart_item.menuitem,
+                    quantity=cart_item.quantity,
+                    unit_price=cart_item.unit_price,
+                    price=cart_item.price
+                )
+            cart_items.delete()
+            return Response({'message': 'Order created successfully'}, status.HTTP_201_CREATED)
+        return Response({'message': 'No cart items to create an order from'}, status.HTTP_400_BAD_REQUEST)
+
+
+
+
 
 # helper function
 def check_user_role(user, roles):

@@ -1,0 +1,11 @@
+customer2: d4574653243d2c89154d0842eea007cfa56f2b2b
+
+manager: 2af46df49de4ad12293b07b5d1249c1898c80c0b
+
+delivery crew: 541b313992dbf7f59ede5ed8bd960ffd1556d7b4
+
+superuser: 05c72bcb1f47e46c981a3b6d9af4a8dfbaab6396
+
+customer 1 087e17d500f4af1195f92f5191a7ab9012aa305b
+
+customer 3 bb44e1abdce1a3bab7bd0deb6f97a885f8dc4b97

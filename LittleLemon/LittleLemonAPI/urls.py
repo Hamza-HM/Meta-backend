@@ -9,4 +9,6 @@ urlpatterns = [
     path('groups/manager/users/<int:pk>', views.DestroyFromManager.as_view(), name='remove-managers'),
     path('groups/delivery-crew/users', views.ListCreateDeliveryCrew.as_view(), name='list-managers'),
     path('groups/delivery-crew/users/<int:pk>', views.DestroyFromDelivery.as_view(), name='remove-delivery'),
+    path('cart/menu-items', views.ListCartItems.as_view(), name='list-cart-items'),
+    path('orders', views.OrderListCreate.as_view(), name='order-list-create'),
 ]

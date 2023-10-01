@@ -23,13 +23,16 @@ class MenuItem(models.Model):
 class Cart(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     menuitem = models.ForeignKey(MenuItem, on_delete=models.CASCADE)
-    quantity = models.SmallIntegerField()
+    quantity = models.SmallIntegerField(default=1)
     unit_price = models.DecimalField(max_digits=6, decimal_places=2)
     price = models.DecimalField(max_digits=6, decimal_places=2)
 
     class Meta:
         unique_together = ['menuitem', 'user']
 
+    def __str__(self):
+        return str(self.menuitem)
+    
 class Order(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     delivery_crew = models.ForeignKey(User, on_delete=models.SET_NULL, related_name='delivery_crew', null=True)
