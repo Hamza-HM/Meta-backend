@@ -5,4 +5,5 @@ someUser02, littlelemon&&, Manager
 someUser03, littlelemon&&, Delivery Crew
 someUser04, littlelemon&&, Delivery Crew
 customer01, littlelemon&&, 
-customer01, littlelemon&&,
+customer02, littlelemon&&,
+customer03, littlelemon&&, 
