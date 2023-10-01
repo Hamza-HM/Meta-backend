@@ -23,7 +23,7 @@ from datetime import datetime
 
 # Create your views here.
 
-ROLES = ['Manager', 'Delivery Crew']
+ROLES = ['Manager', 'Delivery Crew', 'Customer']
 
 
 
@@ -329,8 +329,13 @@ class OrderListCreate(generics.ListCreateAPIView):
         return Response({'message': 'No cart items to create an order from'}, status.HTTP_400_BAD_REQUEST)
 
 
+class orderDetail(generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = (IsAuthenticated, )
+    serializer_class = OrderSerializer
 
-
+    def get_queryset(self):
+        pk = self.kwargs.get('pk')
+        return Order.objects.filter(id=pk, user=self.request.user)
 
 # helper function
 def check_user_role(user, roles):

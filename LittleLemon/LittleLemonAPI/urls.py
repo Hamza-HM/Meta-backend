@@ -11,4 +11,5 @@ urlpatterns = [
     path('groups/delivery-crew/users/<int:pk>', views.DestroyFromDelivery.as_view(), name='remove-delivery'),
     path('cart/menu-items', views.ListCartItems.as_view(), name='list-cart-items'),
     path('orders', views.OrderListCreate.as_view(), name='order-list-create'),
+    path('orders/<int:pk>', views.orderDetail.as_view(), name='order-detail'),
 ]
