@@ -278,8 +278,10 @@ class ListCartItems(generics.ListCreateAPIView, generics.DestroyAPIView):
                 quantity = 1)
             cart_obj_menu_item.save()
             return Response({'message': 'Item Created'}, status.HTTP_201_CREATED)
-        cart_obj_menu_item.quantity += 1
-        cart_obj_menu_item.save()
+        quantity = cart_obj_menu_item.quantity + 1
+        serialized_item = CartItemSerializer(cart_obj_menu_item, data={'quantity': quantity}, partial=True)
+        if serialized_item.is_valid(raise_exception=True):
+            serialized_item.save()
         return Response({'message': 'quantity updated'}, status.HTTP_200_OK)
 
     def delete(self, request, *args, **kwargs):
@@ -335,31 +337,69 @@ class orderDetail(generics.RetrieveUpdateDestroyAPIView):
 
     def get_queryset(self):
         pk = self.kwargs.get('pk')
+        is_admin = self.request.user.is_superuser
+        is_manager = check_user_role(self.request.user, ROLES) == ROLES[0]
+        is_delivery_crew = check_user_role(self.request.user, ROLES) == ROLES[1]
+        order = Order.objects.filter(id=pk)
+        if is_admin or is_manager:
+            return Order.objects.filter(id=pk)
+        if is_delivery_crew and order.filter(user=self.request.user):
+            return Order.objects.filter(id=pk)
         return Order.objects.filter(id=pk, user=self.request.user)
     
-    def udate(self, request, *args, **kwargs):
-        order = self.get_object()
-        is_manager =  check_user_role(request.user, ROLES) == ROLES[0]
-        is_delivery_crew =  check_user_role(request.user, ROLES) == ROLES[1]
-        if 'delivery_crew' in request.data and is_manager:
-            dc_id = request.data('delivery_crew')
-            data= {'delivery_crew': User.objects.filter(id=dc_id)}
-        if 'status' in request.data and is_manager or is_delivery_crew:
-            status = request.data('status')
-            data= {'status': status}
-        if 'order_item' in request.data:
-            order_item_id = request.data('menu_item')
-            order = OrderItem.objects.filter(id=order_item_id).first()
-            order.quantity += 1 #to fix later
-        serialized_data= self.get_serializer(order, data=data, partial=True)
-        if serialized_data.is_valid(raise_exception=True):
-            serialized_data.save()
-            return Response({'message': 'Order deleted successfully'}, status.HTTP_200_OK)
+    def update(self, request, *args, **kwargs):
+            order = self.get_object()
+            is_manager = check_user_role(request.user, ROLES) == ROLES[0]
+            is_delivery_crew = check_user_role(request.user, ROLES) == ROLES[1]
+            data = {}
+            status = request.data.get('status')
+            order_item_id = request.data.get('order_item')
+            dc_id =  request.data.get('delivery_crew') 
+            if dc_id and is_manager:
+                user = User.objects.filter(id=dc_id).first()
+                if not check_user_role(user, ROLES) == ROLES[1]:
+                    return Response({'message': 'not a delivery crew'}, status=400)
+                data['delivery_crew'] = user.id
+
+            if status and (is_manager or is_delivery_crew):
+                status = request.data.get('status')
+                data['status'] = status
+
+            if order_item_id:
+                order_item = OrderItem.objects.filter(id=order_item_id, order=order).first()
+                quantity_update = request.data.get('action')
+
+                if order_item:
+                    if quantity_update == 'add':
+                        order_item.quantity += 1
+                        order_item.save()
+                        return Response({'message': 'quantity added'}, status=200)
+                    elif quantity_update == 'remove':
+                        if order_item.quantity > 1:
+                            order_item.quantity -= 1
+                            order_item.save()
+                            return Response({'message': 'quantity removed'}, status=200)
+                        else:
+                            order_item.delete()
+                            return Response({'message': 'order item deleted'}, status=200)
+                    order_item.save()
+                else:
+                    return Response({'message': 'Invalid order item id'}, status=400)
+            if data:
+                serialized_data = self.get_serializer(order, data=data, partial=True)
+                if serialized_data.is_valid(raise_exception=True):
+                    serialized_data.save()
+                    return Response({'message': 'Order updated successfully'}, status=200)
+            return Response({'message': 'Noth to update'}, status=200)
+    
+    def partial_update(self, request, *args, **kwargs):
+        return self.update(request, *args, **kwargs)
+    
     def delete(self, request, *args, **kwargs):
         order = self.get_object()
         order.delete()
         return Response({'message': 'Order deleted successfully'}, status.HTTP_200_OK)
-
+    
 
 
 # helper function

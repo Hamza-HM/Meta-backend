@@ -49,3 +49,6 @@ class OrderItem(models.Model):
 
     class Meta:
         unique_together = ['order', 'menuitem']
+    def save(self, *args, **kwargs):
+        self.price = self.unit_price * self.quantity
+        super(OrderItem, self).save(*args, **kwargs)

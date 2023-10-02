@@ -51,7 +51,10 @@ class CartItemSerializer(serializers.ModelSerializer):
             'price',
                   ]
     def get_price(self, obj):
-        return obj.unit_price * obj.quantity
+        price = obj.unit_price * obj.quantity
+        obj.price = price
+        obj.save()
+        return price
     
 class OrderItemSerializer(serializers.ModelSerializer):
     price = serializers.SerializerMethodField()
@@ -65,7 +68,10 @@ class OrderItemSerializer(serializers.ModelSerializer):
             'price',
                   ]
     def get_price(self, obj):
-        return obj.unit_price * obj.quantity
+        price = obj.unit_price * obj.quantity
+        obj.price = price
+        obj.save()
+        return price
         
 class OrderSerializer(serializers.ModelSerializer):
     total = serializers.SerializerMethodField()
@@ -93,6 +99,9 @@ class OrderSerializer(serializers.ModelSerializer):
         
     def get_total(self, obj):
         total = 0
-        for order_item in obj.orderitem_set.all():
+        order_items = obj.orderitem_set.all()
+        for order_item in order_items:
             total += order_item.price
+        obj.total = total
+        obj.save()
         return total
