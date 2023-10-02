@@ -19,6 +19,11 @@ class MenuItem(models.Model):
     
     def __str__(self):
         return str(self.title)
+    
+    def save(self, *args, **kwargs):
+        if self.featured:
+            MenuItem.objects.exclude(id=self.id).update(featured=False)
+        super(MenuItem, self).save(*args, **kwargs)
 
 class Cart(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
